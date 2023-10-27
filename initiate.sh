@@ -2,10 +2,16 @@
 set -e
 
 # sudo apt update
-sudo apt-get install git xclip tmux ninja-build gettext cmake unzip curl gcc-multilib pkg-config libfreetype6-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev python3 zsh libssl-dev liblzma-dev npm libsqlite3-dev -y
+if [ $UID == '1000' ]; then
+    sudo apt update
+    sudo apt-get install git xclip tmux ninja-build gettext cmake unzip curl gcc-multilib pkg-config libfreetype6-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev python3 zsh libssl-dev liblzma-dev npm libsqlite3-dev podman zlib1g-dev libbz2-dev libffi-dev libncurses-dev libreadline-dev -y
+else
+    apt update
+    apt-get install git xclip tmux ninja-build gettext cmake unzip curl gcc-multilib pkg-config libfreetype6-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev python3 zsh libssl-dev liblzma-dev npm libsqlite3-dev podman zlib1g-dev libbz2-dev libffi-dev libncurses-dev libreadline-dev -y
+fi
 
 # RUST (do sistema porque vou precisar de alguns programas vindo do cargo)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain=nightly
 $HOME/.cargo/bin/cargo install fzf ripgrep exa bat du-dust fd-find procs alacritty
 
 # Lang Tool
@@ -26,10 +32,10 @@ fi
 cd $neovim_checkpoint/neovim && make CMAKE_BUILD_TYPE=RelWithDebInfo
 cd $neovim_checkpoint/neovim/build && cpack -G DEB && sudo dpkg -i nvim-linux64.deb
 
-git clone https://github.com/SamirPonto/init.lua ~/.config/init.lua
 
 if [ -n "$XDG_CONFIG_HOME" ]; then
     nvim_dir="$XDG_CONFIG_HOME/nvim"
+    git clone https://github.com/SamirPonto/init.lua "$XDG_CONFIG_HOME/init.lua"
     
     if [ ! -d "$nvim_dir" ]; then
         mkdir -p "$nvim_dir"
@@ -38,7 +44,20 @@ if [ -n "$XDG_CONFIG_HOME" ]; then
     else
         echo "Directory $nvim_dir already exists. No action taken."
     fi
+else
+    echo "No XDG_CONFIG_HOME was set. Can we proceed with $HOME/.config folder?"
+    read -n 1 answer
+    if [ "$answer" == 'Y' ]; then
+        git clone https://github.com/SamirPonto/init.lua "$HOME/.config/init.lua"
+        nvim_dir="$HOME/.config/nvim"
+        mkdir -p "$nvim_dir"
+        ln -s "$HOME/.config/init.lua"/* "$nvim_dir"
+        echo "Symbolic link created."
+    fi
 fi
 
 # SHELL (ZSH with Zap)
 zsh <(curl -s https://raw.githubusercontent.com/zap-zsh/zap/master/install.zsh) --branch release-v1
+
+ln -s $PWD/.zshrc $HOME
+ln -s $PWD/.tmux.conf $HOME
